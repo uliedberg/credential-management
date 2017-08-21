@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>parent</title>
+  </head>
+  <body>
+
+    <h1>parent</h1>
+
+    <form action="/api/login" method="POST" id="form">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password">
+      <input type="submit" value="login">
+    </form>
+
+<script>
+console.log('in parent');
+loginViaCredentialManager();
+document.querySelector('#form').addEventListener('submit', loginFun);
+
+function loginFun(e) {
+  console.log('login fun')
+  if (navigator.credentials) {
+    console.log('login fun, we have credential API');
+
+    e.preventDefault();
+
+    // Construct a new PasswordCredential from the HTMLFormElement
+    // that fired the "submit" event: this will suck up the values of the fields
+    // labeled with "username" and "current-password" autocomplete
+    // attributes:
+    const c = new PasswordCredential(e.target);
+
+    // Fetch the form’s action URL, passing that new credential object in
+    // as a FormData object. If the response indicates success, tell the user agent
+    // so it can ask the user to store the password for future use:
+    const opt = {
+      method: 'POST',
+      body: new FormData(e.target),
+      credentials: 'include'  // Send cookies.
+    };
+    fetch(e.target.action, opt).then(r => {
+      if (r.status == 200) {
+        navigator.credentials.store(c);
+      }
+    });
+  }
+}
+
+
+function loginViaCredentialManager() {
+  navigator.credentials
+    .get({ 'password': true })
+    .then(credential => {
+      if (!credential) {
+        console.log('no password credential');
+        // The user either doesn’t have credentials for this site, or
+        // refused to share them. Insert some code here to fall back to
+        // a basic login form.
+        return;
+      }
+      console.log(`user has credential, type is: ${credential.type}`);
+      if (credential.type == 'password') {
+        var form = new FormData();
+        form.append('username', credential.id);
+        form.append('password', credential.password);
+        var opt = {
+          method: 'POST',
+          body: form,
+          credentials: 'include'  // Send cookies.
+        };
+        console.log('will try to login via API with: ', form);
+        fetch('/api/login', opt)
+          .then(function (response) {
+            if (response.status == 200) {
+              // Record that the credential was effective. See note below.
+              navigator.credentials.store(credential);
+              // Notify the user that sign-in succeeded! Do amazing, signed-in things!
+              // Maybe navigate to a landing page via location.href =
+              // '/signed-in-experience'?
+              console.log('logged in');
+            } else {
+              // Insert some code here to fall back to a basic login form.
+              console.log('failed - need normal login form fall back');
+            }
+          });
+      }
+    });
+}
+</script>
+
+<p>child:</p>
+<iframe src="/child/"/>
+
+  </body>
+</html>
